@@ -115,19 +115,20 @@
     <button id="rainHeavyBtn" class="rain-toggle">Rain Heavy 🌧️</button>
   </div>
   <script>
+    // === BPM 재생 개선 ===
     let bpmInterval = null;
     const playBtn = document.getElementById('playBtn');
     const bpmInput = document.getElementById('bpmInput');
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)(); // 단일 AudioContext 생성
 
     function playClick(freq = 1000, duration = 0.05) {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
       osc.frequency.value = freq;
       gain.gain.value = 0.2;
-      osc.connect(gain).connect(ctx.destination);
+      osc.connect(gain).connect(audioCtx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + duration);
+      osc.stop(audioCtx.currentTime + duration);
     }
 
     playBtn.addEventListener('click', () => {
@@ -148,6 +149,7 @@
       playBtn.textContent = 'Stop';
     });
 
+    // === 1시간 페이지 계산 ===
     const pageCountInput = document.getElementById('pageCountInput');
     const calcBtn = document.getElementById('calcBtn');
 
@@ -162,6 +164,7 @@
       bpmInput.value = bpm.toFixed(2);
     });
 
+    // === 타이머 ===
     let timerInterval = null;
     let totalMs = 0;
     let remaining = 0;
@@ -215,27 +218,16 @@
       }, 1000);
     });
 
-    // ⏸️ / ▶️ 텍스트 넣고 싶으면 아래처럼 사용 가능
     donutText.addEventListener('click', () => {
       paused = !paused;
       donutText.style.opacity = paused ? 0.6 : 1;
     });
 
+    // === Rain 소리 재생 개선 (Audio 객체 1개 재사용) ===
     function createSmoothLooper(audioSrc) {
       let isPlaying = false;
-      let nextTimeout = null;
-      let currentAudio = null;
-
-      function playNext() {
-        const audio = new Audio(audioSrc);
-        audio.volume = 1;
-        audio.play();
-        currentAudio = audio;
-        audio.addEventListener("loadedmetadata", () => {
-          const duration = audio.duration;
-          nextTimeout = setTimeout(playNext, (duration - 1) * 1000);
-        });
-      }
+      const audio = new Audio(audioSrc);
+      audio.loop = true;
 
       return {
         toggle(button) {
@@ -243,15 +235,12 @@
           if (isPlaying) {
             button.classList.add("pressed");
             button.textContent = button.dataset.label + " Stop ⏹️";
-            playNext();
+            audio.currentTime = 0;
+            audio.play();
           } else {
             button.classList.remove("pressed");
             button.textContent = button.dataset.label + " Play 🌧️";
-            if (nextTimeout) clearTimeout(nextTimeout);
-            if (currentAudio) {
-              currentAudio.pause();
-              currentAudio = null;
-            }
+            audio.pause();
           }
         }
       };
